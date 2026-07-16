@@ -1,0 +1,42 @@
+restora/
+├── .github/                     # Or .gitlab-ci/ for CI configuration (Day 6)
+│   └── workflows/
+│       └── ci.yml               # Automated build & test pipeline
+│
+├── docs/                        # Project documentation (Day 1 & Day 7)
+│   ├── requirements.md          # Paste the requirements document here
+│   └── wireframes/              # UI sketches/exports (Days 3 & 4)
+│
+├── database/                    # Database migrations & schemas (Day 2)
+│   └── schema.sql               # Your SQL DDL script for the 5 tables
+│
+├── restora_backend/             # Java Spring Boot Backend application
+│   ├── .mvn/ or .gradle/
+│   ├── pom.xml or build.gradle  # Build dependency file
+│   └── src/
+│       ├── main/
+│       │   ├── java/com/restora/
+│       │   │   ├── config/      # App configurations
+│       │   │   ├── controller/  # REST API Endpoints (e.g., CheckInController)
+│       │   │   ├── model/       # JPA Entities (Patient, CheckIn, Deviation)
+│       │   │   ├── repository/  # Spring Data JPA Repositories
+│       │   │   └── service/     # Trajectory Analysis & NLP integration layers
+│       │   └── resources/
+│       │       └── application.yml  # Database connection strings
+│       └── test/                # Backend Unit & Integration tests
+│
+└── restora_mobile/              # Flutter Frontend Mobile application
+    ├── pubspec.yaml             # Flutter dependencies (audio, svg packages)
+    ├── assets/
+    │   └── images/              # Human silhouette SVG/images for body map
+    ├── android/
+    ├── ios/
+    └── lib/                     # Flutter Source Code
+        ├── main.dart            # Application entry point
+        ├── core/                # Global constants, themes, network clients
+        ├── models/              # Frontend data objects
+        ├── services/            # API integration (uploading audio, coordinates)
+        └── views/               # UI Screens
+            ├── check_in/        # Voice recording and flow views
+            ├── body_map/        # Interactive human-shape view
+            └── dashboard/       # Pre-appointment clinician summary view
