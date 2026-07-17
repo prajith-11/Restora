@@ -15,9 +15,11 @@ CREATE TABLE patients (
 CREATE TABLE check_ins (
     id BIGSERIAL PRIMARY KEY,
     patient_id BIGINT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
-    voice_recording_url VARCHAR(512), -- Cloud storage path for the raw file
-    transcript TEXT,                  -- String output returned by your backend NLP engine
-    pain_score INT CHECK (pain_score BETWEEN 1 AND 10), -- Extracted numerical value
+    voice_recording_url VARCHAR(512), 
+    transcript TEXT,                  
+    pain_score INT CHECK (pain_score BETWEEN 1 AND 10), 
+    medication_taken BOOLEAN NOT NULL DEFAULT FALSE, -- Added for adherence tracking
+    sleep_rating INT CHECK (sleep_rating BETWEEN 1 AND 5), -- Added for recovery metrics (1-5 stars)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
