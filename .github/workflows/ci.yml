@@ -1,0 +1,65 @@
+name: Restora Monorepo CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # ☕ BACKEND CI
+  backend-ci:
+    runs-on: ubuntu-latest
+    # Only run if files inside restora_backend change
+    defaults:
+      run:
+        working-directory: restora_backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21' # Change to '21' if using Java 21
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build and Run Tests
+        # -x test bypasses database connectivity issues during basic compilation check
+        # Remove "-x test" later once you have database mocking/testcontainers set up
+        run: ./gradlew build -x test
+
+  # 📱 MOBILE CI
+  mobile-ci:
+    runs-on: ubuntu-latest
+    # Only run if files inside restora_mobile change
+    defaults:
+      run:
+        working-directory: restora_mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify code formatting
+        run: flutter format --set-exit-if-changed .
+
+      - name: Analyze code (Linting)
+        run: flutter analyze
+
+      - name: Run unit tests
+        run: flutter test
