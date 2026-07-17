@@ -135,13 +135,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
               ),
               onPressed: () {
                 // Assert payload schema to debug console
-                print('--- PAYLOAD DISPATCH MOCK ---');
-                print(
+                debugPrint('--- PAYLOAD DISPATCH MOCK ---');
+                debugPrint(
                   'Audio Path Mocked: /data/user/0/restora/cache/mock_log.m4a',
                 );
-                print('Text Field Notes: ${_notesController.text}');
-                print('Selected Zone IDs: $_selectedZones');
-                print('----------------------------');
+                debugPrint('Text Field Notes: ${_notesController.text}');
+                debugPrint('Selected Zone IDs: $_selectedZones');
+                debugPrint('----------------------------');
 
                 Navigator.pop(context, true);
               },
