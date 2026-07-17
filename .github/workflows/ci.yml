@@ -62,4 +62,4 @@ jobs:
         run: flutter analyze
 
       - name: Run unit tests
-        run: flutter test --allow-no-tests
+        run: flutter test
