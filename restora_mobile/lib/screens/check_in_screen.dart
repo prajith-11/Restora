@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-// Fixed: Explicit package import ensures the compiler flags this model correctly across all platforms
 import 'package:restora_mobile/models/check_in_state.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -14,6 +14,48 @@ class _CheckInScreenState extends State<CheckInScreen> {
   final List<String> _selectedZones = [];
   final _notesController = TextEditingController();
 
+  // Speech-to-text instance & availability flag
+  late stt.SpeechToText _speech;
+  bool _speechInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _speech = stt.SpeechToText();
+    _initSpeech();
+  }
+
+  @override
+  void dispose() {
+    // 1. Stop active speech recognition to cancel background timers/callbacks
+    _speech.stop();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  /// Initialize OS speech engine and request mic permissions
+  Future<void> _initSpeech() async {
+    _speechInitialized = await _speech.initialize(
+      onStatus: (status) {
+        debugPrint('STT Status: $status');
+        // Handle engine auto-stopping when user finishes talking
+        if ((status == 'done' || status == 'notListening') &&
+            _micState == MicState.recording) {
+          if (mounted) {
+            setState(() => _micState = MicState.idle);
+          }
+        }
+      },
+      onError: (error) {
+        debugPrint('STT Error: ${error.errorMsg}');
+        if (mounted) {
+          setState(() => _micState = MicState.idle);
+        }
+      },
+    );
+    if (mounted) setState(() {});
+  }
+
   void _toggleZone(String zoneId) {
     setState(() {
       if (_selectedZones.contains(zoneId)) {
@@ -25,18 +67,38 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   void _handleMicTap() async {
-    if (_micState == MicState.idle) {
-      setState(() => _micState = MicState.recording);
-    } else if (_micState == MicState.recording) {
-      setState(() => _micState = MicState.processing);
-      // Simulate backend compression buffer delay
-      await Future.delayed(const Duration(seconds: 2));
-      setState(() => _micState = MicState.idle);
+    // 1. If currently recording -> Stop recording
+    if (_micState == MicState.recording) {
+      await _speech.stop();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Voice log compiled successfully!')),
-        );
+        setState(() => _micState = MicState.idle);
       }
+      return;
+    }
+
+    // 2. If idle & initialized -> Start listening
+    if (_micState == MicState.idle && _speechInitialized) {
+      setState(() => _micState = MicState.recording);
+
+      await _speech.listen(
+        onResult: (result) {
+          // 2. Prevent calling setState if the screen was popped mid-speech
+          if (!mounted) return;
+
+          setState(() {
+            // Stream the transcribed text into the TextField controller
+            _notesController.text = result.recognizedWords;
+
+            // Keep cursor at the end of the text while typing automatically
+            _notesController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _notesController.text.length),
+            );
+          });
+        },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+        partialResults: true, // Shows words live as you speak
+      );
     }
   }
 
@@ -108,7 +170,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
             ),
             const SizedBox(height: 16),
             Row(
-              // Fixed: Swapped incorrect spaceEvenList out for standard spaceEvenly alignment layout
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 FilterChip(
@@ -134,7 +195,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
                 backgroundColor: Colors.teal,
               ),
               onPressed: () {
-                // Assert payload schema to debug console
                 debugPrint('--- PAYLOAD DISPATCH MOCK ---');
                 debugPrint(
                   'Audio Path Mocked: /data/user/0/restora/cache/mock_log.m4a',

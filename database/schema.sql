@@ -51,7 +51,18 @@ CREATE TABLE deviations (
     resolved_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Symptom lexicon: the vocabulary the rule-based NLP matcher searches for in transcripts
+CREATE TABLE IF NOT EXISTS symptom_lexicon (
+    id              SERIAL PRIMARY KEY,
+    term            VARCHAR(100) NOT NULL,          -- canonical term, e.g. 'sharp_pain'
+    category        VARCHAR(50)  NOT NULL,          -- e.g. 'pain_quality', 'trigger_context', 'mobility'
+    synonyms        TEXT[]       NOT NULL,           -- raw words/phrases that map to this term
+    severity_weight SMALLINT     DEFAULT 0,          -- optional: how strongly this term suggests a deviation
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+
 -- Optimization Indexes for Time-Series Trajectory Queries
 CREATE INDEX idx_check_ins_patient_date ON check_ins(patient_id, created_at DESC);
 CREATE INDEX idx_deviations_patient ON deviations(patient_id) WHERE resolved_at IS NULL;
 CREATE INDEX idx_pain_locations_check_in ON pain_locations(check_in_id);
+CREATE INDEX IF NOT EXISTS idx_symptom_lexicon_category ON symptom_lexicon(category);
