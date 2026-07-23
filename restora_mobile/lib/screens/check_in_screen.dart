@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:restora_mobile/models/check_in_state.dart';
+import 'package:restora_mobile/models/check_in_model.dart';
+import 'package:restora_mobile/services/check_in_storage_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class CheckInScreen extends StatefulWidget {
@@ -13,6 +15,9 @@ class _CheckInScreenState extends State<CheckInScreen> {
   MicState _micState = MicState.idle;
   final List<String> _selectedZones = [];
   final _notesController = TextEditingController();
+
+  // Local storage service instance
+  final _storageService = CheckInStorageService();
 
   // Speech-to-text instance & availability flag
   late stt.SpeechToText _speech;
@@ -82,7 +87,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
       await _speech.listen(
         onResult: (result) {
-          // 2. Prevent calling setState if the screen was popped mid-speech
+          // Prevent calling setState if the screen was popped mid-speech
           if (!mounted) return;
 
           setState(() {
@@ -99,6 +104,41 @@ class _CheckInScreenState extends State<CheckInScreen> {
         pauseFor: const Duration(seconds: 3),
         partialResults: true, // Shows words live as you speak
       );
+    }
+  }
+
+  /// Handles creating and saving the CheckInModel to local device storage
+  Future<void> _submitCheckIn() async {
+    final checkInRecord = CheckInModel(
+      localId: DateTime.now().millisecondsSinceEpoch.toString(),
+      patientId: 1, // Default patient ID for offline prototype
+      transcript: _notesController.text,
+      selectedZones: List.from(_selectedZones),
+    );
+
+    debugPrint('--- SAVING LOCAL CHECK-IN ---');
+    debugPrint('JSON Payload: ${checkInRecord.toRawJson()}');
+    debugPrint('-----------------------------');
+
+    final success = await _storageService.saveCheckIn(checkInRecord);
+
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Check-in saved locally!'),
+            backgroundColor: Colors.teal,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save check-in locally.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -194,17 +234,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.teal,
               ),
-              onPressed: () {
-                debugPrint('--- PAYLOAD DISPATCH MOCK ---');
-                debugPrint(
-                  'Audio Path Mocked: /data/user/0/restora/cache/mock_log.m4a',
-                );
-                debugPrint('Text Field Notes: ${_notesController.text}');
-                debugPrint('Selected Zone IDs: $_selectedZones');
-                debugPrint('----------------------------');
-
-                Navigator.pop(context, true);
-              },
+              onPressed: _submitCheckIn,
               child: const Text(
                 'Submit Check-In',
                 style: TextStyle(color: Colors.white, fontSize: 16),
