@@ -1,10 +1,11 @@
 package com.restora.restora_backend.domain;
 
-
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
 @Table(name = "daily_logs")
@@ -14,37 +15,41 @@ public class DailyLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    // Links the log to a specific patient. The Patient table handles the email.
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "patient_id", nullable = false)
+    @JsonIgnore // Prevents infinite recursion during JSON output
     private Patient patient;
 
-    @Column(name = "log_timestamp", nullable = false)
-    private LocalDateTime logTimestamp;
+    @JsonProperty("createdAt")
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "notes", columnDefinition = "TEXT")
-    private String notes;
+    @JsonProperty("transcript")
+    @Column(name = "transcript", columnDefinition = "TEXT")
+    private String transcript;
 
-    @Column(name = "audio_file_path")
-    private String audioFilePath;
-
-    @ElementCollection(fetch = FetchType.EAGER)
+    @JsonProperty("selectedZones")
+    @ElementCollection
     @CollectionTable(name = "daily_log_pain_zones", joinColumns = @JoinColumn(name = "daily_log_id"))
-    @Column(name = "zone_id")
-    private Set<String> painZones = new HashSet<>();
+    @Column(name = "pain_zone")
+    private Set<String> painZones;
 
     public DailyLog() {}
 
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    
     public Patient getPatient() { return patient; }
     public void setPatient(Patient patient) { this.patient = patient; }
-    public LocalDateTime getLogTimestamp() { return logTimestamp; }
-    public void setLogTimestamp(LocalDateTime logTimestamp) { this.logTimestamp = logTimestamp; }
-    public String getNotes() { return notes; }
-    public void setNotes(String notes) { this.notes = notes; }
-    public String getAudioFilePath() { return audioFilePath; }
-    public void setAudioFilePath(String audioFilePath) { this.audioFilePath = audioFilePath; }
+    
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    public String getTranscript() { return transcript; }
+    public void setTranscript(String transcript) { this.transcript = transcript; }
+    
     public Set<String> getPainZones() { return painZones; }
     public void setPainZones(Set<String> painZones) { this.painZones = painZones; }
 }

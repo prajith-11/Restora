@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:restora_mobile/models/check_in_state.dart';
 import 'package:restora_mobile/models/check_in_model.dart';
+import 'package:restora_mobile/services/api_service.dart';
 import 'package:restora_mobile/services/check_in_storage_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -32,7 +33,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
   @override
   void dispose() {
-    // 1. Stop active speech recognition to cancel background timers/callbacks
     _speech.stop();
     _notesController.dispose();
     super.dispose();
@@ -43,7 +43,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
     _speechInitialized = await _speech.initialize(
       onStatus: (status) {
         debugPrint('STT Status: $status');
-        // Handle engine auto-stopping when user finishes talking
         if ((status == 'done' || status == 'notListening') &&
             _micState == MicState.recording) {
           if (mounted) {
@@ -72,7 +71,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
   }
 
   void _handleMicTap() async {
-    // 1. If currently recording -> Stop recording
     if (_micState == MicState.recording) {
       await _speech.stop();
       if (mounted) {
@@ -81,20 +79,15 @@ class _CheckInScreenState extends State<CheckInScreen> {
       return;
     }
 
-    // 2. If idle & initialized -> Start listening
     if (_micState == MicState.idle && _speechInitialized) {
       setState(() => _micState = MicState.recording);
 
       await _speech.listen(
         onResult: (result) {
-          // Prevent calling setState if the screen was popped mid-speech
           if (!mounted) return;
 
           setState(() {
-            // Stream the transcribed text into the TextField controller
             _notesController.text = result.recognizedWords;
-
-            // Keep cursor at the end of the text while typing automatically
             _notesController.selection = TextSelection.fromPosition(
               TextPosition(offset: _notesController.text.length),
             );
@@ -102,16 +95,16 @@ class _CheckInScreenState extends State<CheckInScreen> {
         },
         listenFor: const Duration(seconds: 30),
         pauseFor: const Duration(seconds: 3),
-        partialResults: true, // Shows words live as you speak
+        partialResults: true,
       );
     }
   }
 
-  /// Handles creating and saving the CheckInModel to local device storage
+  /// Handles creating and saving the CheckInModel locally and syncing to Spring Boot backend
   Future<void> _submitCheckIn() async {
     final checkInRecord = CheckInModel(
       localId: DateTime.now().millisecondsSinceEpoch.toString(),
-      patientId: 1, // Default patient ID for offline prototype
+      patientId: 1, // Default patient ID
       transcript: _notesController.text,
       selectedZones: List.from(_selectedZones),
     );
@@ -120,14 +113,30 @@ class _CheckInScreenState extends State<CheckInScreen> {
     debugPrint('JSON Payload: ${checkInRecord.toRawJson()}');
     debugPrint('-----------------------------');
 
-    final success = await _storageService.saveCheckIn(checkInRecord);
+    final localSuccess = await _storageService.saveCheckIn(checkInRecord);
+
+    bool apiSuccess = false;
+    if (localSuccess) {
+      debugPrint("---SYNCING TO BACKEND---");
+      apiSuccess = await ApiService().sendCheckIn(
+        email: 'patient@example.com', // Ensure this email exists in your DB
+        transcript:
+            _notesController.text, // FIXED: matching backend parameter name
+        painZones: _selectedZones.toList(),
+      );
+    }
 
     if (mounted) {
-      if (success) {
+      if (localSuccess) {
+        final message =
+            apiSuccess
+                ? 'Check-in saved and synced!'
+                : 'Check-in saved locally (Backend offline)';
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Check-in saved locally!'),
-            backgroundColor: Colors.teal,
+          SnackBar(
+            content: Text(message),
+            backgroundColor: apiSuccess ? Colors.teal : Colors.orange.shade700,
           ),
         );
         Navigator.pop(context, true);
@@ -151,7 +160,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Voice Loop Segment
             const Text(
               'Describe your knee mobility, extension, or any stiffness you feel today.',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -203,7 +211,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
             ),
             const Divider(height: 40),
 
-            // Body Mapping Segment
             const Text(
               'Select locations where pain is present:',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -228,7 +235,6 @@ class _CheckInScreenState extends State<CheckInScreen> {
             ),
             const SizedBox(height: 40),
 
-            // Submit Segment
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),

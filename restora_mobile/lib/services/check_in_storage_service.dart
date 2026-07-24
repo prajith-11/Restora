@@ -49,6 +49,12 @@ class CheckInStorageService {
     }
   }
 
+  Future<void> saveCheckInsLocally(List<CheckInModel> checkIns) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = checkIns.map((item) => item.toJson()).toList();
+    await prefs.setString(_storageKey, jsonEncode(jsonList));
+  }
+
   /// Clear stored items (useful after syncing to PostgreSQL backend)
   Future<bool> clearLocalQueue() async {
     final prefs = await SharedPreferences.getInstance();
